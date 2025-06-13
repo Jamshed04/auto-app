@@ -1,0 +1,501 @@
+<template>
+  <ejs-schedule
+    height="940px"
+    :selectedDate="selectedDate"
+    :eventSettings="eventSettings"
+    :resources="resources"
+    :group="{ resources: ['Garage'] }"
+    :editorTemplate="'schedulerEditorTemplate'"
+    @actionBegin="onActionBegin"
+    currentView="Day"
+    startHour="09:00"
+    endHour="20:00"
+  >
+    <e-header-rows>
+      <e-header-row option="Year" :template="'monthYearTemplate'">
+        <template #monthYearTemplate="{ data }">
+          <span>{{ formatMonthYear(data.date) }}</span>
+        </template>
+      </e-header-row>
+      <e-header-row option="Date" />
+    </e-header-rows>
+
+    <e-resources>
+      <e-resource
+        field="GarageId"
+        title="Гаражи"
+        name="Garage"
+        :dataSource="resources"
+        textField="Name"
+        idField="Id"
+        colorField="Color"
+      />
+    </e-resources>
+
+    <e-views>
+        <e-view option="Day" :event-template="'schedulerTemplate'">
+          <template v-slot:schedulerTemplate="{ data }">
+            <div class="template-warp">
+            <div class="time">Time  : {{ getTimeString(data) }}</div>
+              <div class="LastName">{{ data.LastName }}</div>
+              <div class="Car">{{ data.Car }}</div>
+              <div class="Master">{{ data.Master }}</div>
+              <div class="totalPrice">Стоимость: {{ data.totalPrice }}</div>
+              <div class="totalPrice">Статус: {{ data.Status }}</div>
+            </div>
+          </template>
+        </e-view>
+
+        <e-view option="Week" :event-template="'monthViewTemplate'">
+          <template v-slot:monthViewTemplate>
+            <div class="template-warp"></div>
+          </template>
+        </e-view>
+      </e-views>
+
+    <template v-slot:schedulerEditorTemplate="{ data }">
+      <table class="custom-event-editor" width="100%" cellpadding="5">
+        <tbody>
+          <tr>
+            <td class="e-textlable">Фамилия</td>
+            <td colspan="4">
+              <input class="e-field e-input" type="text" name="LastName" :disabled="data.Status === 'Завершенный'">
+            </td>
+          </tr>
+          <tr>
+            <td class="e-textlable">Имя</td>
+            <td colspan="4">
+              <input class="e-field e-input" type="text" name="FirstName" :disabled="data.Status === 'Завершенный'">
+            </td>
+          </tr>
+          <tr>
+            <td class="e-textlable">Номер телефона</td>
+            <td colspan="4">
+              <input class="e-field e-input" type="text" name="Phone" :disabled="data.Status === 'Завершенный'">
+            </td>
+          </tr>
+          <tr>
+        <td class="e-textlable">Автомобиль</td>
+        <td colspan="4">
+          <div style="position: relative; display: inline-block;">
+            <ejs-dropdownlist
+              ref="carDropdown"
+              class="e-field"
+              name="Car"
+              :dataSource="listCarsource"
+              v-model="data.Car"
+              placeholder="Выберите авто"
+              :allowFiltering="true"
+            />
+            <div v-if="data.Status === 'Завершенный'" class="disabled-overlay"></div>
+          </div>
+        </td>
+      </tr>
+      <tr>
+        <td class="e-textlable">Мастер</td>
+        <td colspan="4">
+          <div style="position: relative; display: inline-block;">
+            <ejs-dropdownlist
+              ref="masterDropdown"
+              class="e-field"
+              name="Master"
+              :dataSource="listMastersource"
+              v-model="data.Master"
+              placeholder="Выберите мастера"
+              :allowFiltering="true"
+            />
+            <div v-if="data.Status === 'Завершенный'" class="disabled-overlay"></div>
+          </div>
+        </td>
+      </tr>
+          <tr>
+        <td class="e-textlable">Услуги</td>
+        <td colspan="4">
+            <ejs-multiselect
+              ref="servicesMultiselect"
+              class="e-field"
+              name="Services"
+              :dataSource="servicesList"
+              :disabled="data.Status === 'Завершенный'"
+              :mode="'Box'"
+              placeholder="Выберите услуги"
+              :allowFiltering="true"
+              :fields="{ text: 'Name', value: 'Name' }"
+              @change="onServicesChange"
+            />
+        </td>
+        </tr>
+        <tr>
+            <td class="e-textlable">Стоимость</td>
+            <td colspan="4">
+              <span>{{ totalPrice }} ₽</span>
+            </td>
+          </tr>
+          <tr>
+            <td class="e-textlable">Скидка 10%</td>
+            <td colspan="4">
+              <input type="checkbox" v-model="discountApplied" @change="calculateTotal" :disabled="data.Status === 'Завершенный'"/>
+            </td>
+          </tr>
+          <tr>
+            <td class="e-textlable">От</td>
+            <td colspan="4">
+              <ejs-datetimepicker class="e-field" name="StartTime" :disabled="data.Status === 'Завершенный'"></ejs-datetimepicker>
+            </td>
+          </tr>
+          <tr>
+            <td class="e-textlable">До</td>
+            <td colspan="4">
+              <ejs-datetimepicker class="e-field" name="EndTime" :disabled="data.Status === 'Завершенный'"></ejs-datetimepicker>
+            </td>
+          </tr>
+          <tr>
+            <td class="e-textlable">Статус</td>
+            <td colspan="4">
+              <ejs-dropdownlist
+                class="e-field"
+                name="Status"
+                placeholder="Выберите статус"
+                :dataSource='listStatus'
+              />
+            </td>
+          </tr>
+        </tbody>
+      </table>
+    </template>
+  </ejs-schedule>
+</template>
+
+<script>
+import {
+  ScheduleComponent,
+  ViewsDirective,
+  ViewDirective,
+  HeaderRowsDirective,
+  HeaderRowDirective,
+  ResourcesDirective,
+  ResourceDirective,
+  Day,
+  Week,
+  DragAndDrop,
+  Resize,
+} from "@syncfusion/ej2-vue-schedule";
+import { Internationalization } from "@syncfusion/ej2-base";
+import { DropDownListComponent, MultiSelectComponent} from "@syncfusion/ej2-vue-dropdowns"
+import { DateTimePickerComponent } from "@syncfusion/ej2-vue-calendars";
+import { L10n } from "@syncfusion/ej2-base";
+
+import { useClientsStore } from "@/stores/clients";
+import { useBookingsStore } from "@/stores/bookings";
+
+import { MASTERS } from "@/stores/mastersStore";
+import { CARS } from "@/stores/carsStore";
+import { SERVICES } from "@/stores/Services";
+
+
+const intl = new Internationalization();
+
+L10n.load({
+  'en-US': {
+    schedule: {
+      day: 'День',
+      addTitle: 'Введите фамилию',
+      week: 'Неделя',
+      workWeek: 'Рабочая неделя',
+      month: 'Месяц',
+      agenda: 'Повестка дня',
+      weekAgenda: 'Повестка недели',
+      workWeekAgenda: 'Повестка рабочих дней',
+      monthAgenda: 'Повестка месяца',
+      today: 'Сегодня',
+      noEvents: 'Событий нет',
+      emptyContainer: 'Нет запланированных событий на этот день.',
+      allDay: 'Весь день',
+      start: 'Начало',
+      more: 'ещё',                
+      moreDetails: 'Подробнее',   
+      eventDetails: 'Детали записи',
+      close: 'Закрыть',
+      cancel: 'Отменить',
+      noTitle: '(Без названия)',
+      delete: 'Удалить',
+      deleteEvent: 'Удалить событие',
+      deleteMultipleEvent: 'Удалить выбранные записи',
+      selectedItems: 'Выбранные элементы',
+      deleteSeries: 'Удалить цепочку',
+      deleteOccurrence: 'Удалить повторение',
+      edit: 'Редактировать',
+      editSeries: 'Редактировать цепочку',
+      editOccurrence: 'Редактировать повторение',
+      event: 'Запись',
+      add: 'Добавить',
+      save: 'Сохранить',
+      editEvent: 'Редактировать запись',
+      newEvent: 'Новая запись',
+      saveButton: 'Сохранить',
+      cancelButton: 'Закрыть',
+      deleteButton: 'Удалить',
+      recurrence: 'Повторение',
+      wrongPattern: 'Шаблон повторения недопустим.',
+      seriesChangeAlert: 'Изменения, внесенные в конкретное повторение, будут отменены и это событие снова станет частью серии.',
+      createError: 'Продолжительность события должна быть меньше выбранного представления.',
+      sameEventExists: 'Уже существует событие в это время.',
+      editRecurrence: 'Редактировать повторение',
+      repeats: 'Повторяется',
+      alert: 'Оповещение',
+      startEndError: 'Время окончания должно быть больше времени начала.',
+      invalidDateError: 'Неверный ввод даты.',
+      blockAlert: 'События не могут быть запланированы в заблокированное время.',
+      yes: 'Да',
+      no: 'Нет',
+      occurrence: 'Повторение',
+      series: 'Серия',
+      none: 'Нет',
+      daily: 'Ежедневно',
+      weekly: 'Еженедельно',
+      monthly: 'Ежемесячно',
+      year: 'Год',
+      summary: 'Итог',
+      hourly: 'Каждый час',
+      every: 'Каждые',
+      days: 'дней',
+      weeks: 'недель',
+      months: 'месяцев',
+      years: 'лет',
+      after: 'После',
+      end: 'Конец',
+      mobile: 'Мобильный',
+      recurrenceRule: 'Правило повторения',
+      date: 'Дата',
+      time: 'Время',
+      eventType: 'Тип события',
+      showMore: 'Показать больше',  
+      expandAllDaySection: 'Развернуть секцию «Весь день»',
+      collapseAllDaySection: 'Свернуть секцию «Весь день»',
+      saveChanges: 'Сохранить изменения',
+      discardChanges: 'Отменить изменения',
+      editSeriesEvent: 'Редактировать событие серии',
+      editOccurrenceEvent: 'Редактировать отдельное повторение',
+      deleteSeriesEvent: 'Удалить событие серии',
+      deleteOccurrenceEvent: 'Удалить отдельное повторение',
+    }
+  }
+});
+
+export default {
+  name: "GarageCalendar",
+  components: {
+    "ejs-schedule": ScheduleComponent,
+    "e-views": ViewsDirective,
+    "e-view": ViewDirective,
+    "e-header-rows": HeaderRowsDirective,
+    "e-header-row": HeaderRowDirective,
+    "e-resources": ResourcesDirective,
+    "e-resource": ResourceDirective,
+    'ejs-dropdownlist': DropDownListComponent,
+    'ejs-datetimepicker': DateTimePickerComponent,
+    'ejs-multiselect': MultiSelectComponent,
+  },
+  provide: { schedule: [Day, Week, DragAndDrop, Resize] },
+  setup() {
+    const clientsStore = useClientsStore();
+    const bookingsStore = useBookingsStore();
+
+    return {
+      clientsStore,
+      bookingsStore,
+    };
+  },
+
+  computed: {
+    scheduleEvents() {
+      return this.bookingsStore.bookings.map(booking => {
+        const client = this.clientsStore.getClientById(booking.clientId);
+        // const isReadonly = booking.status === 'Завершенный';
+
+        const services = booking.services || [];
+        const basePrice = services.reduce((sum, serviceName) => {
+          const service = this.servicesList.find(s => s.Name === serviceName);
+          return sum + (service ? service.Price : 0);
+        }, 0);
+
+        const totalPrice = booking.discountApplied ? basePrice * 0.9 : basePrice;
+
+        return {
+          Id: booking.id,
+          LastName: client?.lastName || '',
+          FirstName: client?.firstName || '',
+          Phone: client?.phone || '',
+          Car: client?.car || '',
+          Master: booking.master,
+          Services: booking.services,
+          StartTime: new Date(booking.startTime),
+          EndTime: new Date(booking.endTime),
+          Status: booking.status,
+          GarageId: booking.garageId,
+          totalPrice,
+          // IsReadonly: isReadonly 
+        };
+      });
+    },
+    eventSettings() {
+      return {
+        dataSource: this.scheduleEvents,
+        fields: {
+          id: 'Id',
+          subject: { name: 'LastName', title: 'Фамилия' },
+          location: { name: 'Phone', title: 'Телефон' },
+          description: { name: 'Services', title: 'Услуги' },
+          startTime: { name: 'StartTime' },
+          endTime: { name: 'EndTime' },
+          GarageId: { name: 'GarageId', title: 'Гараж' },
+          status: { name: 'Status', title: 'Статус' },
+          totalPrice: { name: 'totalPrice', title: 'Стоимость' }
+        }
+      };
+    },
+  },
+  data() {
+    return {
+      listMastersource: MASTERS,
+      template: "schedulerTemplate",
+      listStatus: ['Активный', 'Завершенный'],
+      listCarsource: CARS,
+      servicesList: SERVICES,
+      selectedServices: [],
+      totalPrice: 0,
+      selectedDate: new Date(),
+      resources: [
+        { Id: 1, Name: "Бокс 1 / Гараж A", Color: "#ea7a57" },
+        { Id: 2, Name: "Бокс 1 / Гараж B", Color: "#7fa900" },
+        { Id: 3, Name: "Бокс 2 / Гараж A", Color: "#5978ee" },
+        { Id: 4, Name: "Бокс 2 / Гараж B", Color: "#fec200" },
+      ],
+      discountApplied: false,
+    };
+  },
+
+  methods: {
+    formatMonthYear(date) {
+      return intl.formatDate(date, { skeleton: "yMMMM" });
+    },
+    getTimeString(data) {
+      return intl.formatDate(data.StartTime, { skeleton: 'hm' }) + " - " + intl.formatDate(data.EndTime, { skeleton: 'hm' });
+    },
+    calculateTotal() {
+    let sum = this.servicesList
+      .filter(service => this.selectedServices.includes(service.Name))
+      .reduce((sum, service) => sum + service.Price, 0);
+    if (this.discountApplied) {
+      sum = sum * 0.9;
+    }
+    this.totalPrice = sum;
+  },
+  onDiscountChange() {
+    this.calculateTotal();
+  },
+   onServicesChange(args) {
+    this.selectedServices = args.value || [];
+    this.calculateTotal();
+  },
+    onActionBegin(args) {
+    if (args.requestType === 'eventCreate') {
+      const data = args.data instanceof Array ? args.data[0] : args.data;
+      const clientId = this.createOrFindClient(data);
+      this.bookingsStore.addBooking({
+        id: data.Id,
+        clientId,
+        master: data.Master,
+        services: data.Services,
+        startTime: data.StartTime,
+        endTime: data.EndTime,
+        garageId: data.GarageId,
+        status: data.Status 
+      });
+    }
+
+    if (args.requestType === 'eventChange') {
+      const data = args.data;
+      const clientId = this.createOrFindClient(data);
+      this.bookingsStore.updateBooking({
+        id: data.Id,
+        clientId,
+        master: data.Master,
+        services: data.Services,
+        startTime: data.StartTime,
+        endTime: data.EndTime,
+        garageId: data.GarageId,
+        status: data.Status 
+      });
+    }
+
+    if (args.requestType === 'eventRemove') {
+      const data = args.data instanceof Array ? args.data[0] : args.data;
+      this.bookingsStore.deleteBooking(data.Id);
+    }
+  },
+
+  createOrFindClient(data) {
+    const lastName = data.LastName?.trim();
+    const firstName = data.FirstName?.trim();
+    const phone = data.Phone?.trim();
+
+    const onlyLastNameFilled =
+      lastName &&
+      !firstName &&
+      !phone;
+    
+    if (onlyLastNameFilled) {
+      return null;
+    }
+    const existing = this.clientsStore.clients.find(c =>
+      c.lastName === data.LastName &&
+      c.firstName === data.FirstName &&
+      c.phone === data.Phone
+    );
+
+    if (existing) return existing.id;
+
+    const newClient = {
+      id: Date.now(),
+      lastName: data.LastName,
+      firstName: data.FirstName,
+      phone: data.Phone,
+      car: data.Car
+    };
+    this.clientsStore.addClient(newClient);
+    return newClient.id;
+  }
+  },
+  //  mounted() {
+  //   localStorage.removeItem('clients');
+  //   localStorage.removeItem('bookings');
+  // }
+};
+</script>
+
+<style>
+@import "~@syncfusion/ej2-base/styles/material.css";
+@import "~@syncfusion/ej2-buttons/styles/material.css";
+@import "~@syncfusion/ej2-calendars/styles/material.css";
+@import "~@syncfusion/ej2-dropdowns/styles/material.css";
+@import "~@syncfusion/ej2-inputs/styles/material.css";
+@import "~@syncfusion/ej2-navigations/styles/material.css";
+@import "~@syncfusion/ej2-popups/styles/material.css";
+@import "~@syncfusion/ej2-vue-schedule/styles/material.css";
+
+.e-header-row span {
+  font-weight: bold;
+  font-size: 16px;
+}
+
+.disabled-overlay {
+  position: absolute;
+  top: 0; left: 0; right: 0; bottom: 0;
+  background: transparent;
+  pointer-events: all;
+  z-index: 10;
+}
+</style>
+
+
